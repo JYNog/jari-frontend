@@ -16,17 +16,30 @@ type Props = {
   onChange: (v: string) => void;
   onPick: (item: SuggestItem) => void; // 선택 시 좌표 전달
   apiBase?: string;
+  /**
+   * 외부에서 강제로 자동완성 목록을 닫고 싶을 때 사용하는 토큰
+   * 값이 변경되면 목록을 닫는다.
+   */
+  forceCloseToken?: number;
 };
 
 export default function SearchAutocomplete({
-  value, onChange, onPick, apiBase = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000"
+  value,
+  onChange,
+  onPick,
+  apiBase = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000",
+  forceCloseToken = 0,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<SuggestItem[]>([]);
   const timer = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    if (!value.trim()) { setItems([]); setOpen(false); return; }
+    if (!value.trim()) {
+      setItems([]);
+      setOpen(false);
+      return;
+    }
     if (timer.current) clearTimeout(timer.current);
 
     timer.current = setTimeout(async () => {
@@ -36,9 +49,16 @@ export default function SearchAutocomplete({
         const json = await res.json();
         setItems(json.items || []);
         setOpen(true);
-      } catch { /* noop */ }
+      } catch {
+        /* noop */
+      }
     }, 250); // 디바운스 250ms
   }, [value, apiBase]);
+
+  // 외부 토큰이 변경되면 목록을 닫는다
+  useEffect(() => {
+    setOpen(false);
+  }, [forceCloseToken]);
 
   return (
     <div className="relative w-full">

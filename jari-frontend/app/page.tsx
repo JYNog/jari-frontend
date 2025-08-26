@@ -73,16 +73,17 @@ export default function Home() {
     setResult(null);
     try {
       const base = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8000";
+      const payload = {
+        categories: picked,
+        radius_m: Number(radius),
+        center_lat: c.lat,
+        center_lon: c.lon,
+        ...(q.trim() ? { q: q.trim() } : {}),
+      };
       const res = await fetch(`${base}/search`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          q: q.trim(),
-          categories: picked,
-          radius_m: Number(radius),
-          center_lat: c.lat,
-          center_lon: c.lon,
-        }),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) throw new Error(`API ${res.status}`);
       const data: SearchResp = await res.json();
@@ -90,8 +91,8 @@ export default function Home() {
       setStage("results");
       setSidebarOpen(false); // 검색 후 자동으로 접기
       setForceCloseToken((t) => t + 1); // 검색 직후 자동완성 강제 닫기
-    } catch (e: any) {
-      setError(e.message ?? "검색 실패");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "검색 실패");
     } finally {
       setLoading(false);
     }
@@ -110,6 +111,13 @@ export default function Home() {
   }, [result, center]);
 
   const pois = (result?.pois ?? []) as KakaoPoi[];
+  const countsByCat = useMemo(() => {
+    const counts: Record<string, number> = {};
+    (result?.pois ?? []).forEach((p) => {
+      counts[p.code] = (counts[p.code] || 0) + 1;
+    });
+    return counts;
+  }, [result]);
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-white to-gray-50">
@@ -170,11 +178,12 @@ export default function Home() {
         <section className="px-0 md:px-4 py-3">
           <div className="mb-3 flex items-center gap-2 px-4">
             <button
-              className="border px-3 py-1 rounded"
+              className="border px-3 py-1 rounded flex items-center gap-1"
               onClick={() => setSidebarOpen((v) => !v)}
               aria-label="검색 패널 토글"
             >
-              {sidebarOpen ? "검색 패널 숨기기" : "검색 패널 열기"}
+              <span>{sidebarOpen ? "◀" : "▶"}</span>
+              <span className="hidden sm:inline">{sidebarOpen ? "검색 패널 숨기기" : "검색 패널 열기"}</span>
             </button>
             <div className="text-sm text-gray-500">
               총 {(result?.total_all ?? 0).toLocaleString()}건
@@ -231,6 +240,17 @@ export default function Home() {
                   {/* 차트 자리(임시) */}
                   <div className="text-sm text-gray-500 mb-2">요약</div>
                   <div className="text-3xl font-semibold">{(result?.total_all ?? 0).toLocaleString()}</div>
+                  <ul className="mt-2 space-y-1 text-sm text-gray-600">
+                    {picked.map((code) => {
+                      const cat = CATEGORIES.find((c) => c.code === code);
+                      if (!cat) return null;
+                      return (
+                        <li key={code}>
+                          {cat.emoji} {cat.name}: {(countsByCat[code] ?? 0).toLocaleString()}개
+                        </li>
+                      );
+                    })}
+                  </ul>
                   <div className="text-xs text-gray-500 mt-2">
                     앞으로 이 영역에 히스토그램/분포 차트를 넣자
                   </div>
