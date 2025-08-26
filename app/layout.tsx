@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   title: "자리(JARI)",
   description: "부동산 입지분석 플랫폼",
   icons: {
-    icon: "/favicon.ico",   // 또는 "/jari_logo.png"
+    icon: "/jari_logo.png",   // 또는 "/jari_logo.png"
   },
 };
 
