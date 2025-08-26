@@ -28,14 +28,13 @@ const CATEGORIES: Cat[] = [
   { code: "PM9", name: "약국", emoji: "💊" },
 ];
 
-type Poi = { name: string; x: number; y: number; distance?: number; code: string };
+type Poi = { name: string; x: number; y: number; distance?: number; code?: string; address?: string; phone?: string; url?: string };
 type SearchResp = {
   center: { lat: number; lon: number; label: string };
   pois: Poi[];
   total_all: number;
   bins?: Array<{ range: [number, number]; count: number; est?: number }>;
 };
-
 type Center = { lat: number; lon: number };
 
 export default function Home() {
@@ -55,16 +54,16 @@ export default function Home() {
   const [result, setResult] = useState<SearchResp | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // 사이드바 (검색 후 자동 닫히고, 버튼으로 토글)
+  // 사이드 패널 토글(검색 후)
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // 자동완성 강제 닫기 토큰 (값이 바뀌면 SearchAutocomplete가 목록 닫음)
+  // 자동완성 강제 닫기 토큰
   const [forceCloseToken, setForceCloseToken] = useState(0);
 
   const onPickSuggest = (it: { x: number; y: number; label: string }) => {
-    setCenter({ lat: it.y, lon: it.x }); // kakao는 x=경도, y=위도
+    setCenter({ lat: it.y, lon: it.x }); // kakao: x=경도, y=위도
     setQuery(it.label);
-    setForceCloseToken((t) => t + 1); // 선택하면 목록 강제 닫기
+    setForceCloseToken((t) => t + 1); // 선택 시 자동완성 닫기
   };
 
   const runSearch = async (c: Center, q: string) => {
@@ -88,8 +87,8 @@ export default function Home() {
       const data: SearchResp = await res.json();
       setResult(data);
       setStage("results");
-      setSidebarOpen(false); // 검색 후 자동으로 접기
-      setForceCloseToken((t) => t + 1); // 검색 직후 자동완성 강제 닫기
+      setSidebarOpen(false);
+      setForceCloseToken((t) => t + 1); // 검색 직후 자동완성 닫기
     } catch (e: any) {
       setError(e.message ?? "검색 실패");
     } finally {
@@ -103,17 +102,25 @@ export default function Home() {
     runSearch(center, query);
   };
 
+  // 지도 중심
   const mapCenter = useMemo<Center>(() => {
     if (result?.center) return { lat: result.center.lat, lon: result.center.lon };
     if (center) return center;
     return { lat: 37.5665, lon: 126.9780 }; // fallback: 서울시청
   }, [result, center]);
 
-  const pois = (result?.pois ?? []) as KakaoPoi[];
+  // 백엔드 결과
+  const poisRaw = (result?.pois ?? []) as KakaoPoi[];
+
+  // 프론트에서 카테고리 필터 한 번 더 (백엔드가 code 안 주면 일단 표시)
+  const poisFiltered = useMemo(
+    () => poisRaw.filter((p: any) => !p.code || picked.includes(p.code)),
+    [poisRaw, picked]
+  );
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-white to-gray-50">
-      {/* 헤더: 처음 화면과 동일하게 유지 */}
+      {/* 헤더 */}
       <header className="sticky top-0 z-10 bg-white/80 backdrop-blur border-b">
         <div className="w-full px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -128,7 +135,7 @@ export default function Home() {
         </div>
       </header>
 
-      {/* 처음 화면: 검색 + 카테고리 + 반경만 */}
+      {/* 1) 처음 화면 */}
       {stage === "idle" && (
         <section className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] px-4">
           <h1 className="text-3xl md:text-5xl font-semibold tracking-tight text-center">
@@ -145,7 +152,7 @@ export default function Home() {
             <button
               onClick={onSearch}
               disabled={!query.trim() || !center || loading}
-              className="border px-4 py-2 rounded disabled:opacity-50"
+              className="border px-4 py-2 rounded bg-black text-white disabled:opacity-50"
             >
               검색
             </button>
@@ -165,7 +172,7 @@ export default function Home() {
         </section>
       )}
 
-      {/* 결과 화면: 상단은 유지, 본문은 지도/차트 1:1, 사이드바는 토글로 */}
+      {/* 2) 결과 화면 */}
       {stage === "results" && (
         <section className="px-0 md:px-4 py-3">
           <div className="mb-3 flex items-center gap-2 px-4">
@@ -196,7 +203,7 @@ export default function Home() {
                   <button
                     onClick={onSearch}
                     disabled={!query.trim() || !center || loading}
-                    className="mt-2 w-full border px-4 py-2 rounded disabled:opacity-50"
+                    className="mt-2 w-full border px-4 py-2 rounded bg-black text-white disabled:opacity-50"
                   >
                     다시 검색
                   </button>
@@ -214,25 +221,28 @@ export default function Home() {
               </aside>
             )}
 
-            {/* 우: 지도 + 차트 (1:1 레이아웃) */}
+            {/* 우: 지도 + 차트 (1:1) */}
             <div className={sidebarOpen ? "col-span-12 md:col-span-8 lg:col-span-9" : "col-span-12"}>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <div className="rounded-xl border bg-white">
-                  {/* 지도는 높이 보장 */}
+                <div className="rounded-xl border bg-white overflow-hidden">
                   <KakaoMap
                     center={mapCenter}
-                    pois={pois}
+                    addressLabel={result?.center?.label ?? query}
+                    level={4}
+                    radiusM={Number(radius)}
+                    pois={poisFiltered as KakaoPoi[]}
                     className="w-full min-h-[560px] rounded-xl"
                     fitBounds
                     cluster
                   />
                 </div>
                 <div className="rounded-xl border bg-white p-4">
-                  {/* 차트 자리(임시) */}
                   <div className="text-sm text-gray-500 mb-2">요약</div>
-                  <div className="text-3xl font-semibold">{(result?.total_all ?? 0).toLocaleString()}</div>
+                  <div className="text-3xl font-semibold">
+                    {(result?.total_all ?? poisFiltered.length).toLocaleString()}
+                  </div>
                   <div className="text-xs text-gray-500 mt-2">
-                    앞으로 이 영역에 히스토그램/분포 차트를 넣자
+                    (차트 영역 예정)
                   </div>
                 </div>
               </div>
