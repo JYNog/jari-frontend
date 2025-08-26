@@ -73,18 +73,21 @@ export default function Home() {
     <main className="min-h-screen bg-gradient-to-b from-white to-gray-50">
       {/* 헤더 */}
       <header className="sticky top-0 z-10 bg-white/70 backdrop-blur border-b">
-        <div className="mx-auto max-w-6xl px-4 h-16 flex items-center justify-between">
+        {/* 풀폭 컨테이너 */}
+        <div className="w-full px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Image src="/jari_logo.png" alt="JARI" width={100} height={100} className="rounded" />
             <span className="font-semibold text-lg">자리(JARI)</span>
           </div>
-          <nav className="text-sm text-gray-600 hidden sm:flex items-center gap-4">
+
+          <nav className="text-sm text-gray-600 hidden sm:flex items-center gap-6">
             <a className="hover:text-black" href="#">기능</a>
             <a className="hover:text-black" href="#">요금제</a>
             <a className="hover:text-black" href="#">문의</a>
           </nav>
         </div>
       </header>
+
 
       {/* 히어로 + 검색 UI */}
       <section className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] px-4">
