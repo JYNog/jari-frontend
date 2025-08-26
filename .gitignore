@@ -1,5 +1,34 @@
+<<<<<<< HEAD
 node_modules
 .next
 dist
 .env.local
 .DS_Store
+=======
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.sqlite3
+
+# Virtual env
+.venv/
+env/
+
+# Alembic cache
+alembic/versions/*.pyc
+
+# Node / Next.js
+node_modules/
+.next/
+dist/
+
+# Env secrets
+*.env
+.env.*
+
+# OS files
+.DS_Store
+Thumbs.db
+>>>>>>> f740f44 (init frontend + backend with FastAPI, Alembic, Supabase config)
